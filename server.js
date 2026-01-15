@@ -16,6 +16,11 @@ app.use(express.static('public', {
   }
 }));
 
+// Route for the Prime Video app
+app.get('/prime', (req, res) => {
+  res.sendFile(__dirname + '/prime.html');
+});
+
 // NBA API base URL (using balldontlie.io API)
 const NBA_API_BASE = 'https://api.balldontlie.io/v1';
 const NBA_API_KEY = process.env.NBA_API_KEY;

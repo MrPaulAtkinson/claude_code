@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#00A8E1">
+    <title>NBA on Prime Video - Today's Games</title>
+    <link rel="manifest" href="/prime-manifest.json">
+    <link rel="apple-touch-icon" href="/prime-icon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .header {
+            background: rgba(0, 168, 225, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #00A8E1;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .prime-logo {
+            font-size: 32px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00A8E1, #0066CC);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #a0a0a0;
+            font-weight: 400;
+        }
+
+        .date-display {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #00A8E1;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .refresh-btn {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            display: block;
+            padding: 15px;
+            background: linear-gradient(135deg, #00A8E1 0%, #0066CC 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 168, 225, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 10px rgba(0, 168, 225, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 18px;
+            color: #00A8E1;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 168, 225, 0.3);
+            border-top-color: #00A8E1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .no-games {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed #00A8E1;
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .no-games-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+            opacity: 0.6;
+        }
+
+        .no-games h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: #00A8E1;
+        }
+
+        .no-games p {
+            color: #a0a0a0;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .game-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+            border: 1px solid rgba(0, 168, 225, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .game-card:active {
+            transform: scale(0.98);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #00A8E1 0%, #0066CC 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .game-time {
+            font-size: 14px;
+            color: #00A8E1;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .matchup {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .team {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .team:active {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .team-name {
+            font-size: 18px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .vs-divider {
+            text-align: center;
+            color: #666;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .game-status {
+            font-size: 13px;
+            color: #a0a0a0;
+            text-align: center;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 8px;
+        }
+
+        .watch-now {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 168, 225, 0.2);
+            color: #00A8E1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 12px;
+            width: 100%;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .watch-now:active {
+            background: rgba(0, 168, 225, 0.3);
+        }
+
+        .error {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            color: #ff3b30;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .info-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #a0a0a0;
+            line-height: 1.6;
+        }
+
+        .info-section strong {
+            color: #00A8E1;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding: 30px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="prime-logo">prime video</div>
+        </div>
+        <h1>🏀 NBA Games</h1>
+        <div class="subtitle">Today's Live Games</div>
+        <div class="date-display" id="dateDisplay"></div>
+    </div>
+
+    <div class="container">
+        <button class="refresh-btn" onclick="loadGames()">🔄 Refresh Games</button>
+
+        <div id="gamesContainer">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>Loading today's games...</div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <strong>About NBA on Prime Video:</strong> Prime Video streams exclusive NBA games throughout the season, typically on Friday nights. The 2025-26 season features 66 games including NBA Cup knockout rounds and Play-In Tournament games.
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        // Update date display
+        function updateDateDisplay() {
+            const today = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
+        }
+
+        // Format time for display
+        function formatGameTime(dateStr, status) {
+            if (status && status !== 'Scheduled') {
+                return status;
+            }
+
+            // If we have a specific time, format it
+            if (dateStr.includes('T')) {
+                const date = new Date(dateStr);
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            }
+
+            return 'Time TBD';
+        }
+
+        // Check if game is likely on Prime Video
+        function isPrimeGame(game, date) {
+            const gameDate = new Date(date);
+            const dayOfWeek = gameDate.getDay();
+
+            // Prime Video typically shows games on Fridays (day 5)
+            // This is a simplified heuristic - in production you'd want a more accurate method
+            return dayOfWeek === 5;
+        }
+
+        // Load games for today
+        async function loadGames() {
+            const container = document.getElementById('gamesContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading today\'s games...</div></div>';
+
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const response = await fetch(`${API_BASE}/games/${today}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to load games');
+                }
+
+                const data = await response.json();
+                let games = data.games || [];
+
+                // Filter for Prime Video games (Friday games for now)
+                const primeGames = games.filter(game => isPrimeGame(game, today));
+
+                if (primeGames.length === 0) {
+                    const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+                    container.innerHTML = `
+                        <div class="no-games">
+                            <div class="no-games-icon">📺</div>
+                            <h2>No Prime Video Games Today</h2>
+                            <p>There are no NBA games on Prime Video scheduled for ${dayOfWeek}.</p>
+                            <p style="margin-top: 15px;">Prime Video typically streams NBA games on Friday nights and special events.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                displayGames(primeGames, today);
+            } catch (error) {
+                console.error('Error loading games:', error);
+                container.innerHTML = `
+                    <div class="error">
+                        <strong>⚠️ Unable to load games</strong>
+                        <p style="margin-top: 10px;">Please check your connection and try again.</p>
+                        <p style="margin-top: 5px; font-size: 12px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Display games
+        function displayGames(games, date) {
+            const container = document.getElementById('gamesContainer');
+
+            const gamesHtml = games.map(game => {
+                const gameTime = formatGameTime(game.date, game.status);
+                const isLive = game.status && game.status.includes('Live');
+                const score = game.homeScore && game.awayScore ?
+                    `${game.awayScore} - ${game.homeScore}` : '';
+
+                return `
+                    <div class="game-card">
+                        <div class="game-badge">${isLive ? '🔴 LIVE' : 'On Prime Video'}</div>
+                        <div class="game-time">${gameTime}</div>
+                        <div class="matchup">
+                            <div class="team">
+                                <span class="team-name">${game.awayTeam}</span>
+                                ${score ? `<span style="font-size: 20px; font-weight: bold; margin-left: 10px;">${game.awayScore}</span>` : ''}
+                            </div>
+                            <div class="vs-divider">@</div>
+                            <div class="team">
+                                <span class="team-name">${game.homeTeam}</span>
+                                ${score ? `<span style="font-size: 20px; font-weight: bold; margin-left: 10px;">${game.homeScore}</span>` : ''}
+                            </div>
+                        </div>
+                        <a href="https://www.amazon.com/gp/video/storefront/ref=atv_nb_spo_nba" class="watch-now" target="_blank">
+                            ▶️ Watch on Prime Video
+                        </a>
+                        ${game.status ? `<div class="game-status">${game.status}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = gamesHtml;
+        }
+
+        // Initialize
+        updateDateDisplay();
+        loadGames();
+
+        // Auto-refresh every 2 minutes
+        setInterval(loadGames, 120000);
+    </script>
+</body>
+</html>

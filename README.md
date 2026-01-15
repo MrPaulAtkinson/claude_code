@@ -2,6 +2,8 @@
 
 A web application to track and compare NBA game predictions from different groups across multiple classes.
 
+**NEW:** Also includes a mobile-optimized Progressive Web App to view today's NBA games on Prime Video at `/prime`!
+
 ## Features
 
 - **Class Organization**: Organize groups by class (e.g., Period 1, Period 2, etc.)
@@ -63,7 +65,46 @@ npm run dev
 http://localhost:3000
 ```
 
-## How to Use
+## NBA on Prime Video App
+
+### Quick Start
+
+After starting the server, visit:
+```
+http://localhost:3000/prime
+```
+
+On your phone, open this URL in your mobile browser for a fully optimized mobile experience!
+
+### Features
+
+- **Mobile-First Design**: Beautiful, responsive interface optimized for phones
+- **Today's Games**: Automatically shows only games on Prime Video for today
+- **Auto-Refresh**: Updates every 2 minutes to show live scores
+- **Progressive Web App**: Add to your home screen for an app-like experience
+- **One-Tap Access**: Direct links to watch games on Prime Video
+
+### How It Works
+
+The app uses the NBA API to fetch today's games and filters them based on Prime Video's broadcasting schedule (typically Friday nights and special events). When games are live, scores update automatically.
+
+### Mobile Installation
+
+On iPhone:
+1. Open the URL in Safari
+2. Tap the Share button
+3. Select "Add to Home Screen"
+
+On Android:
+1. Open the URL in Chrome
+2. Tap the menu (⋮)
+3. Select "Add to Home screen"
+
+---
+
+## Predictions Tracker
+
+### How to Use
 
 ### 1. Set Up Classes
 
