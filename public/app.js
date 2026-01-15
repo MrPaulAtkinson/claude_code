@@ -773,8 +773,15 @@ function showMessage(message, type) {
   messageDiv.className = className;
   messageDiv.textContent = message;
 
-  const activeTab = document.querySelector('.tab-content.active');
-  activeTab.insertBefore(messageDiv, activeTab.firstChild);
+  // Try to place message near the save button if it exists
+  const saveButtonContainer = document.getElementById('predictions-form-container');
+  if (saveButtonContainer && saveButtonContainer.style.display !== 'none') {
+    saveButtonContainer.appendChild(messageDiv);
+  } else {
+    // Otherwise place at top of active tab
+    const activeTab = document.querySelector('.tab-content.active');
+    activeTab.insertBefore(messageDiv, activeTab.firstChild);
+  }
 
-  setTimeout(() => messageDiv.remove(), 5000);
+  setTimeout(() => messageDiv.remove(), 3000);
 }
