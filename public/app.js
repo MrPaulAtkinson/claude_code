@@ -84,6 +84,7 @@ function displayClasses() {
 function updateClassSelectors() {
   const groupClassSelector = document.getElementById('group-class-selector');
   const predictionsClassFilter = document.getElementById('predictions-class-filter');
+  const resultsClassFilter = document.getElementById('results-class-filter');
 
   // Update group creation selector
   if (classes.length === 0) {
@@ -95,6 +96,10 @@ function updateClassSelectors() {
 
   // Update predictions filter
   predictionsClassFilter.innerHTML = '<option value="">All Classes</option>' +
+    classes.map(cls => `<option value="${cls.id}">${cls.name}</option>`).join('');
+
+  // Update results filter
+  resultsClassFilter.innerHTML = '<option value="">All Classes</option>' +
     classes.map(cls => `<option value="${cls.id}">${cls.name}</option>`).join('');
 }
 
