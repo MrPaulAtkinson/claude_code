@@ -68,6 +68,7 @@ async function loadClasses() {
 
 // Display classes in the classes tab
 function displayClasses() {
+  console.log('displayClasses called - Version 2.0 with Edit/Delete');
   const container = document.getElementById('classes-list');
 
   if (classes.length === 0) {
@@ -84,6 +85,7 @@ function displayClasses() {
       </div>
     </div>
   `).join('') + '</div>';
+  console.log('Classes HTML generated:', container.innerHTML.substring(0, 200));
 }
 
 // Update class selector dropdowns
