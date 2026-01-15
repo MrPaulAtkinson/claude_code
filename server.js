@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 const db = require('./database');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 
 app.use(cors());
 app.use(express.json());
