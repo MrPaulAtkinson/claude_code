@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -10,8 +11,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// NBA API base URL (using free API - balldontlie.io)
+// NBA API base URL (using balldontlie.io API)
 const NBA_API_BASE = 'https://api.balldontlie.io/v1';
+const NBA_API_KEY = process.env.NBA_API_KEY;
+
+// Check if API key is configured
+if (!NBA_API_KEY) {
+  console.warn('⚠️  WARNING: NBA_API_KEY is not set in .env file. Game loading will fail.');
+  console.warn('   Get a free API key from: https://www.balldontlie.io/');
+}
 
 // Get today's date in YYYY-MM-DD format
 function getTodayDate() {
@@ -28,8 +36,23 @@ function formatDate(dateStr) {
 app.get('/api/games/:date', async (req, res) => {
   const { date } = req.params;
 
+  if (!NBA_API_KEY) {
+    return res.status(500).json({
+      error: 'NBA API key not configured. Please add NBA_API_KEY to your .env file.'
+    });
+  }
+
   try {
-    const response = await fetch(`${NBA_API_BASE}/games?dates[]=${date}`);
+    const response = await fetch(`${NBA_API_BASE}/games?dates[]=${date}`, {
+      headers: {
+        'Authorization': NBA_API_KEY
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+
     const data = await response.json();
 
     const games = data.data.map(game => ({

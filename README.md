@@ -16,6 +16,7 @@ A web application to track and compare NBA game predictions from different group
 
 - Node.js (version 14 or higher)
 - npm (comes with Node.js)
+- NBA API key from balldontlie.io (free)
 
 ## Installation
 
@@ -25,6 +26,25 @@ A web application to track and compare NBA game predictions from different group
 ```bash
 npm install
 ```
+
+3. **Set up your NBA API key:**
+
+   a. Get a free API key:
+   - Visit https://www.balldontlie.io/
+   - Sign up for a free account
+   - Copy your API key
+
+   b. Create a `.env` file in the project root:
+   ```bash
+   cp .env.example .env
+   ```
+
+   c. Open `.env` and add your API key:
+   ```
+   NBA_API_KEY=your_actual_api_key_here
+   ```
+
+   **Important:** Never commit your `.env` file to git! It's already in `.gitignore`.
 
 ## Running the Application
 
@@ -126,10 +146,13 @@ nba-predictions-tracker/
 
 ## Troubleshooting
 
-**Games not loading:**
+**Games not loading ("Unauthorized" or "Failed to load games"):**
+- **Most common:** Make sure you've set up your NBA API key in the `.env` file (see Installation step 3)
+- Check the server console for error messages about missing API key
+- Verify your API key is valid at https://www.balldontlie.io/
 - Check your internet connection
 - The NBA API may have rate limits - wait a minute and try again
-- Make sure the date you selected has scheduled games
+- Make sure the date you selected has scheduled games (try December 25, 2024 for testing)
 
 **Cannot add groups:**
 - Ensure you've created at least one class first
