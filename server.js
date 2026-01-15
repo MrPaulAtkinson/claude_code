@@ -9,7 +9,12 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+// Disable caching for static files during development
+app.use(express.static('public', {
+  setHeaders: (res, path) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  }
+}));
 
 // NBA API base URL (using balldontlie.io API)
 const NBA_API_BASE = 'https://api.balldontlie.io/v1';
