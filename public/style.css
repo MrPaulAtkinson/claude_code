@@ -287,6 +287,63 @@ button:hover {
   text-align: center;
   font-weight: 600;
   color: #333;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group-card .card-name {
+  flex: 1;
+}
+
+.group-card .card-actions {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.edit-btn, .delete-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1em;
+  transition: all 0.2s;
+}
+
+.class-card .edit-btn, .class-card .delete-btn {
+  background: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.4);
+}
+
+.class-card .edit-btn:hover {
+  background: rgba(255,255,255,0.5);
+  transform: scale(1.1);
+}
+
+.class-card .delete-btn:hover {
+  background: rgba(255,100,100,0.4);
+  transform: scale(1.1);
+}
+
+.group-card .edit-btn, .group-card .delete-btn {
+  background: #fff;
+  border: 1px solid #ddd;
+}
+
+.group-card .edit-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.1);
+}
+
+.group-card .delete-btn:hover {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
+  transform: scale(1.1);
 }
 
 .success-message {
@@ -360,6 +417,19 @@ button:hover {
   text-align: center;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.class-card .card-name {
+  flex: 1;
+}
+
+.class-card .card-actions {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
 }
 
 .date-selector select {

@@ -76,7 +76,13 @@ function displayClasses() {
   }
 
   container.innerHTML = '<div class="classes-grid">' + classes.map(cls => `
-    <div class="class-card">${cls.name}</div>
+    <div class="class-card">
+      <div class="card-name">${cls.name}</div>
+      <div class="card-actions">
+        <button class="edit-btn" onclick="editClass(${cls.id}, '${cls.name.replace(/'/g, "\\'")}')">✏️</button>
+        <button class="delete-btn" onclick="deleteClass(${cls.id}, '${cls.name.replace(/'/g, "\\'")}')">🗑️</button>
+      </div>
+    </div>
   `).join('') + '</div>';
 }
 
@@ -134,6 +140,60 @@ async function addClass() {
   }
 }
 
+// Edit a class
+async function editClass(id, currentName) {
+  const newName = prompt('Enter new class name:', currentName);
+
+  if (!newName || newName === currentName) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/classes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    });
+
+    if (response.ok) {
+      await loadClasses();
+      await loadGroups();
+      showMessage('Class renamed successfully!', 'success');
+    } else {
+      const error = await response.json();
+      showMessage(error.error || 'Failed to rename class', 'error');
+    }
+  } catch (error) {
+    console.error('Error renaming class:', error);
+    showMessage('Error renaming class', 'error');
+  }
+}
+
+// Delete a class
+async function deleteClass(id, name) {
+  if (!confirm(`Delete class "${name}"?\n\nNote: You must delete all groups in this class first.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/classes/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      await loadClasses();
+      await loadGroups();
+      showMessage('Class deleted successfully!', 'success');
+    } else {
+      const error = await response.json();
+      showMessage(error.error || 'Failed to delete class', 'error');
+    }
+  } catch (error) {
+    console.error('Error deleting class:', error);
+    showMessage('Error deleting class', 'error');
+  }
+}
+
 // Load groups from API
 async function loadGroups() {
   try {
@@ -174,7 +234,13 @@ function displayGroups() {
           <h4>${cls.name}</h4>
           <div class="groups-grid">
             ${classGroups.map(group => `
-              <div class="group-card">${group.name}</div>
+              <div class="group-card">
+                <div class="card-name">${group.name}</div>
+                <div class="card-actions">
+                  <button class="edit-btn" onclick="editGroup(${group.id}, '${group.name.replace(/'/g, "\\'")}')">✏️</button>
+                  <button class="delete-btn" onclick="deleteGroup(${group.id}, '${group.name.replace(/'/g, "\\'")}')">🗑️</button>
+                </div>
+              </div>
             `).join('')}
           </div>
         </div>
@@ -221,6 +287,73 @@ async function addGroup() {
   } catch (error) {
     console.error('Error adding group:', error);
     showMessage('Error adding group', 'error');
+  }
+}
+
+// Edit a group
+async function editGroup(id, currentName) {
+  const newName = prompt('Enter new group name:', currentName);
+
+  if (!newName || newName === currentName) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/groups/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    });
+
+    if (response.ok) {
+      await loadGroups();
+      showMessage('Group renamed successfully!', 'success');
+    } else {
+      const error = await response.json();
+      showMessage(error.error || 'Failed to rename group', 'error');
+    }
+  } catch (error) {
+    console.error('Error renaming group:', error);
+    showMessage('Error renaming group', 'error');
+  }
+}
+
+// Delete a group
+async function deleteGroup(id, name) {
+  try {
+    // First try normal delete to check for predictions
+    const response = await fetch(`${API_BASE}/groups/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      await loadGroups();
+      showMessage('Group deleted successfully!', 'success');
+    } else {
+      const error = await response.json();
+
+      // If group has predictions, ask for confirmation
+      if (error.hasPredictions) {
+        if (confirm(`Delete group "${name}"?\n\nThis group has ${error.count} prediction(s).\nAll predictions will be permanently deleted.\n\nContinue?`)) {
+          // Force delete with predictions
+          const forceResponse = await fetch(`${API_BASE}/groups/${id}/force`, {
+            method: 'DELETE'
+          });
+
+          if (forceResponse.ok) {
+            await loadGroups();
+            showMessage('Group and all predictions deleted successfully!', 'success');
+          } else {
+            showMessage('Failed to delete group', 'error');
+          }
+        }
+      } else {
+        showMessage(error.error || 'Failed to delete group', 'error');
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting group:', error);
+    showMessage('Error deleting group', 'error');
   }
 }
 
@@ -363,6 +496,59 @@ function displayGamesForPredictions(games, existingPredictions) {
       </div>
     `;
   }).join('');
+
+  // Set up keyboard shortcuts for faster data entry
+  setupKeyboardShortcuts();
+}
+
+// Setup keyboard shortcuts for prediction dropdowns
+function setupKeyboardShortcuts() {
+  const selects = document.querySelectorAll('#games-container select');
+
+  selects.forEach((select, index) => {
+    select.addEventListener('keydown', (e) => {
+      // Arrow Up: Select first option (home team)
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        select.selectedIndex = 1; // Index 1 is first team (0 is "Select Winner")
+      }
+      // Arrow Down: Select second option (away team)
+      else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        select.selectedIndex = 2; // Index 2 is second team
+      }
+      // Home key: Select home team (H key)
+      else if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        select.selectedIndex = 1;
+      }
+      // Away team (A key)
+      else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        select.selectedIndex = 2;
+      }
+      // Space: Toggle between teams
+      else if (e.key === ' ') {
+        e.preventDefault();
+        if (select.selectedIndex === 0 || select.selectedIndex === 2) {
+          select.selectedIndex = 1; // Select home if nothing or away selected
+        } else {
+          select.selectedIndex = 2; // Select away if home selected
+        }
+      }
+      // Tab or Enter: Move to next select
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        const nextSelect = selects[index + 1];
+        if (nextSelect) {
+          nextSelect.focus();
+        } else {
+          // If last select, focus on save button
+          document.getElementById('save-predictions-btn').focus();
+        }
+      }
+    });
+  });
 }
 
 // Save all predictions

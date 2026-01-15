@@ -100,6 +100,54 @@ app.post('/api/classes', (req, res) => {
   });
 });
 
+// Update/rename a class
+app.put('/api/classes/:id', (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Class name is required' });
+  }
+
+  db.run('UPDATE classes SET name = ? WHERE id = ?', [name, id], function(err) {
+    if (err) {
+      return res.status(400).json({ error: 'Class name already exists' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Delete a class
+app.delete('/api/classes/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Check if class has groups
+  db.get('SELECT COUNT(*) as count FROM groups WHERE class_id = ?', [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (row.count > 0) {
+      return res.status(400).json({
+        error: `Cannot delete class with ${row.count} group(s). Delete groups first.`
+      });
+    }
+
+    db.run('DELETE FROM classes WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Class not found' });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
 // Get all groups (with class information)
 app.get('/api/groups', (req, res) => {
   const query = `
@@ -134,6 +182,79 @@ app.post('/api/groups', (req, res) => {
       return res.status(400).json({ error: 'Group name already exists in this class' });
     }
     res.json({ id: this.lastID, name, classId });
+  });
+});
+
+// Update/rename a group
+app.put('/api/groups/:id', (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Group name is required' });
+  }
+
+  db.run('UPDATE groups SET name = ? WHERE id = ?', [name, id], function(err) {
+    if (err) {
+      return res.status(400).json({ error: 'Group name already exists in this class' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Delete a group
+app.delete('/api/groups/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Check if group has predictions
+  db.get('SELECT COUNT(*) as count FROM predictions WHERE group_id = ?', [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (row.count > 0) {
+      return res.status(400).json({
+        error: `This group has ${row.count} prediction(s). Deleting will remove all predictions. Continue?`,
+        hasPredictions: true,
+        count: row.count
+      });
+    }
+
+    db.run('DELETE FROM groups WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
+// Force delete a group (with predictions)
+app.delete('/api/groups/:id/force', (req, res) => {
+  const { id } = req.params;
+
+  // Delete predictions first
+  db.run('DELETE FROM predictions WHERE group_id = ?', [id], (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    // Then delete the group
+    db.run('DELETE FROM groups WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      res.json({ success: true });
+    });
   });
 });
 
