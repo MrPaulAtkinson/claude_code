@@ -1,0 +1,180 @@
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+const db = require('./database');
+
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+
+// NBA API base URL (using free API - balldontlie.io)
+const NBA_API_BASE = 'https://api.balldontlie.io/v1';
+
+// Get today's date in YYYY-MM-DD format
+function getTodayDate() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// Format date for display
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// Fetch NBA games for a specific date
+app.get('/api/games/:date', async (req, res) => {
+  const { date } = req.params;
+
+  try {
+    const response = await fetch(`${NBA_API_BASE}/games?dates[]=${date}`);
+    const data = await response.json();
+
+    const games = data.data.map(game => ({
+      id: game.id,
+      date: date,
+      homeTeam: game.home_team.full_name,
+      awayTeam: game.visitor_team.full_name,
+      homeScore: game.home_team_score,
+      awayScore: game.visitor_team_score,
+      status: game.status,
+      winner: game.home_team_score > game.visitor_team_score ? game.home_team.full_name :
+              game.visitor_team_score > game.home_team_score ? game.visitor_team.full_name : null
+    }));
+
+    res.json({ games });
+  } catch (error) {
+    console.error('Error fetching games:', error);
+    res.status(500).json({ error: 'Failed to fetch games' });
+  }
+});
+
+// Get all groups
+app.get('/api/groups', (req, res) => {
+  db.all('SELECT * FROM groups ORDER BY name', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ groups: rows });
+  });
+});
+
+// Add a new group
+app.post('/api/groups', (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Group name is required' });
+  }
+
+  db.run('INSERT INTO groups (name) VALUES (?)', [name], function(err) {
+    if (err) {
+      return res.status(400).json({ error: 'Group name already exists' });
+    }
+    res.json({ id: this.lastID, name });
+  });
+});
+
+// Save predictions for a date
+app.post('/api/predictions', (req, res) => {
+  const { predictions } = req.body;
+
+  if (!predictions || !Array.isArray(predictions)) {
+    return res.status(400).json({ error: 'Invalid predictions data' });
+  }
+
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO predictions
+    (group_id, game_id, game_date, predicted_winner, home_team, away_team)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  predictions.forEach(p => {
+    stmt.run([p.groupId, p.gameId, p.gameDate, p.predictedWinner, p.homeTeam, p.awayTeam]);
+  });
+
+  stmt.finalize((err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Get predictions for a specific date
+app.get('/api/predictions/:date', (req, res) => {
+  const { date } = req.params;
+
+  db.all(`
+    SELECT p.*, g.name as group_name
+    FROM predictions p
+    JOIN groups g ON p.group_id = g.id
+    WHERE p.game_date = ?
+  `, [date], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ predictions: rows });
+  });
+});
+
+// Save game results
+app.post('/api/results', (req, res) => {
+  const { results } = req.body;
+
+  if (!results || !Array.isArray(results)) {
+    return res.status(400).json({ error: 'Invalid results data' });
+  }
+
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO results
+    (game_id, game_date, home_team, away_team, winner, home_score, away_score)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  results.forEach(r => {
+    stmt.run([r.gameId, r.gameDate, r.homeTeam, r.awayTeam, r.winner, r.homeScore, r.awayScore]);
+  });
+
+  stmt.finalize((err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Get accuracy statistics for all groups
+app.get('/api/stats', (req, res) => {
+  const query = `
+    SELECT
+      g.id,
+      g.name,
+      COUNT(p.id) as total_predictions,
+      SUM(CASE WHEN p.predicted_winner = r.winner THEN 1 ELSE 0 END) as correct_predictions,
+      ROUND(
+        CAST(SUM(CASE WHEN p.predicted_winner = r.winner THEN 1 ELSE 0 END) AS FLOAT) /
+        COUNT(p.id) * 100,
+        2
+      ) as accuracy_percentage
+    FROM groups g
+    LEFT JOIN predictions p ON g.id = p.group_id
+    LEFT JOIN results r ON p.game_id = r.game_id
+    WHERE r.winner IS NOT NULL
+    GROUP BY g.id, g.name
+    ORDER BY accuracy_percentage DESC
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ stats: rows });
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`NBA Predictions Tracker running on http://localhost:${PORT}`);
+});

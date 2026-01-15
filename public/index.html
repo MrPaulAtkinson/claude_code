@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NBA Predictions Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🏀 NBA Predictions Tracker</h1>
+      <p>Track your class predictions for daily NBA games</p>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="predictions">Today's Predictions</button>
+      <button class="tab-btn" data-tab="results">Previous Results</button>
+      <button class="tab-btn" data-tab="stats">Group Statistics</button>
+      <button class="tab-btn" data-tab="groups">Manage Groups</button>
+    </nav>
+
+    <!-- Predictions Tab -->
+    <div id="predictions-tab" class="tab-content active">
+      <div class="date-selector">
+        <label>Select Date:</label>
+        <input type="date" id="predictions-date" />
+        <button id="load-games-btn">Load Games</button>
+      </div>
+
+      <div id="games-container">
+        <p class="info-message">Select a date and load games to start making predictions.</p>
+      </div>
+
+      <div id="predictions-form-container" style="display: none;">
+        <button id="save-predictions-btn" class="primary-btn">Save All Predictions</button>
+      </div>
+    </div>
+
+    <!-- Results Tab -->
+    <div id="results-tab" class="tab-content">
+      <div class="date-selector">
+        <label>Select Date:</label>
+        <input type="date" id="results-date" />
+        <button id="load-results-btn">Load Results</button>
+      </div>
+
+      <div id="results-container">
+        <p class="info-message">Select a date to view results.</p>
+      </div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div id="stats-tab" class="tab-content">
+      <h2>Overall Accuracy by Group</h2>
+      <div id="stats-container">
+        <p class="info-message">Loading statistics...</p>
+      </div>
+    </div>
+
+    <!-- Groups Tab -->
+    <div id="groups-tab" class="tab-content">
+      <h2>Manage Groups</h2>
+      <div class="add-group-form">
+        <input type="text" id="new-group-name" placeholder="Enter group name" />
+        <button id="add-group-btn">Add Group</button>
+      </div>
+      <div id="groups-list">
+        <p class="info-message">Loading groups...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
