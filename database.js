@@ -6,12 +6,32 @@ const db = new sqlite3.Database(dbPath);
 
 // Initialize database schema
 db.serialize(() => {
-  // Groups table
-  db.run(`CREATE TABLE IF NOT EXISTS groups (
+  // Classes table
+  db.run(`CREATE TABLE IF NOT EXISTS classes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Groups table
+  db.run(`CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id),
+    UNIQUE(class_id, name)
+  )`);
+
+  // Add class_id column to groups table if it doesn't exist (for existing databases)
+  db.run(`PRAGMA table_info(groups)`, [], (err, info) => {
+    db.all(`PRAGMA table_info(groups)`, [], (err, columns) => {
+      const hasClassId = columns && columns.some(col => col.name === 'class_id');
+      if (!hasClassId) {
+        db.run(`ALTER TABLE groups ADD COLUMN class_id INTEGER DEFAULT 1`);
+      }
+    });
+  });
 
   // Predictions table
   db.run(`CREATE TABLE IF NOT EXISTS predictions (

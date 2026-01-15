@@ -25,6 +25,10 @@
       <div class="date-selector">
         <label>Select Date:</label>
         <input type="date" id="predictions-date" />
+        <label>Filter by Class:</label>
+        <select id="predictions-class-filter">
+          <option value="">All Classes</option>
+        </select>
         <button id="load-games-btn">Load Games</button>
       </div>
 
@@ -60,13 +64,33 @@
 
     <!-- Groups Tab -->
     <div id="groups-tab" class="tab-content">
-      <h2>Manage Groups</h2>
-      <div class="add-group-form">
-        <input type="text" id="new-group-name" placeholder="Enter group name" />
-        <button id="add-group-btn">Add Group</button>
+      <h2>Manage Classes & Groups</h2>
+
+      <!-- Classes Section -->
+      <div class="management-section">
+        <h3>Classes</h3>
+        <div class="add-class-form">
+          <input type="text" id="new-class-name" placeholder="Enter class name (e.g., Period 1)" />
+          <button id="add-class-btn">Add Class</button>
+        </div>
+        <div id="classes-list">
+          <p class="info-message">Loading classes...</p>
+        </div>
       </div>
-      <div id="groups-list">
-        <p class="info-message">Loading groups...</p>
+
+      <!-- Groups Section -->
+      <div class="management-section">
+        <h3>Groups</h3>
+        <div class="add-group-form">
+          <select id="group-class-selector">
+            <option value="">Select a class first</option>
+          </select>
+          <input type="text" id="new-group-name" placeholder="Enter group name" />
+          <button id="add-group-btn">Add Group</button>
+        </div>
+        <div id="groups-list">
+          <p class="info-message">Loading groups...</p>
+        </div>
       </div>
     </div>
   </div>

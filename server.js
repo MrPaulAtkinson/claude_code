@@ -51,9 +51,42 @@ app.get('/api/games/:date', async (req, res) => {
   }
 });
 
-// Get all groups
+// Get all classes
+app.get('/api/classes', (req, res) => {
+  db.all('SELECT * FROM classes ORDER BY name', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ classes: rows });
+  });
+});
+
+// Add a new class
+app.post('/api/classes', (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Class name is required' });
+  }
+
+  db.run('INSERT INTO classes (name) VALUES (?)', [name], function(err) {
+    if (err) {
+      return res.status(400).json({ error: 'Class name already exists' });
+    }
+    res.json({ id: this.lastID, name });
+  });
+});
+
+// Get all groups (with class information)
 app.get('/api/groups', (req, res) => {
-  db.all('SELECT * FROM groups ORDER BY name', [], (err, rows) => {
+  const query = `
+    SELECT g.*, c.name as class_name
+    FROM groups g
+    JOIN classes c ON g.class_id = c.id
+    ORDER BY c.name, g.name
+  `;
+
+  db.all(query, [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -63,17 +96,21 @@ app.get('/api/groups', (req, res) => {
 
 // Add a new group
 app.post('/api/groups', (req, res) => {
-  const { name } = req.body;
+  const { name, classId } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'Group name is required' });
   }
 
-  db.run('INSERT INTO groups (name) VALUES (?)', [name], function(err) {
+  if (!classId) {
+    return res.status(400).json({ error: 'Class ID is required' });
+  }
+
+  db.run('INSERT INTO groups (name, class_id) VALUES (?, ?)', [name, classId], function(err) {
     if (err) {
-      return res.status(400).json({ error: 'Group name already exists' });
+      return res.status(400).json({ error: 'Group name already exists in this class' });
     }
-    res.json({ id: this.lastID, name });
+    res.json({ id: this.lastID, name, classId });
   });
 });
 
@@ -108,9 +145,10 @@ app.get('/api/predictions/:date', (req, res) => {
   const { date } = req.params;
 
   db.all(`
-    SELECT p.*, g.name as group_name
+    SELECT p.*, g.name as group_name, g.class_id, c.name as class_name
     FROM predictions p
     JOIN groups g ON p.group_id = g.id
+    JOIN classes c ON g.class_id = c.id
     WHERE p.game_date = ?
   `, [date], (err, rows) => {
     if (err) {
@@ -152,6 +190,8 @@ app.get('/api/stats', (req, res) => {
     SELECT
       g.id,
       g.name,
+      c.name as class_name,
+      g.class_id,
       COUNT(p.id) as total_predictions,
       SUM(CASE WHEN p.predicted_winner = r.winner THEN 1 ELSE 0 END) as correct_predictions,
       ROUND(
@@ -160,11 +200,12 @@ app.get('/api/stats', (req, res) => {
         2
       ) as accuracy_percentage
     FROM groups g
+    JOIN classes c ON g.class_id = c.id
     LEFT JOIN predictions p ON g.id = p.group_id
     LEFT JOIN results r ON p.game_id = r.game_id
     WHERE r.winner IS NOT NULL
-    GROUP BY g.id, g.name
-    ORDER BY accuracy_percentage DESC
+    GROUP BY g.id, g.name, c.name, g.class_id
+    ORDER BY c.name, accuracy_percentage DESC
   `;
 
   db.all(query, [], (err, rows) => {

@@ -1,13 +1,15 @@
 # NBA Predictions Tracker
 
-A web application to track and compare NBA game predictions from different groups in your class.
+A web application to track and compare NBA game predictions from different groups across multiple classes.
 
 ## Features
 
+- **Class Organization**: Organize groups by class (e.g., Period 1, Period 2, etc.)
 - **Daily Game Tracking**: Automatically fetches NBA games for any date
 - **Group Predictions**: Record predictions from multiple groups
+- **Class Filtering**: View predictions and results filtered by class
 - **Results Comparison**: View predictions vs. actual results
-- **Accuracy Statistics**: Track overall prediction accuracy for each group
+- **Accuracy Statistics**: Track overall prediction accuracy organized by class
 - **Clean Interface**: Easy-to-use tabbed interface
 
 ## Prerequisites
@@ -43,37 +45,51 @@ http://localhost:3000
 
 ## How to Use
 
-### 1. Set Up Groups
+### 1. Set Up Classes
 
-First, add your class groups:
+First, create your classes:
 - Click on the "Manage Groups" tab
+- Under the "Classes" section, enter a class name (e.g., "Period 1", "Period 2", "Math Class A", etc.)
+- Click "Add Class"
+- Repeat for all your classes
+
+### 2. Set Up Groups
+
+Next, add groups to each class:
+- In the "Groups" section of the "Manage Groups" tab
+- Select a class from the dropdown
 - Enter a group name (e.g., "Group 1", "Team Alpha", etc.)
 - Click "Add Group"
-- Repeat for all groups
+- Repeat for all groups in all classes
 
-### 2. Make Predictions
+Note: Group names must be unique within each class, but different classes can have groups with the same name.
+
+### 3. Make Predictions
 
 To record predictions for a day's games:
 - Go to the "Today's Predictions" tab
 - Select a date (defaults to today)
+- (Optional) Filter by a specific class using the dropdown
 - Click "Load Games"
 - For each game, select the predicted winner for each group
 - Click "Save All Predictions"
 
-### 3. View Results
+### 4. View Results
 
 After games are completed:
 - Go to the "Previous Results" tab
 - Select the date
 - Click "Load Results"
-- View a table showing each group's predictions and whether they were correct (✓) or incorrect (✗)
+- View a table showing each group's predictions organized by class
+- Predictions are marked as correct (✓) or incorrect (✗)
 
-### 4. Check Statistics
+### 5. Check Statistics
 
 View overall accuracy:
 - Go to the "Group Statistics" tab
-- See each group's total predictions and accuracy percentage
-- Groups are ranked by accuracy
+- See statistics organized by class
+- Each group shows total predictions and accuracy percentage
+- Groups are sorted by class and then by accuracy
 
 ## API Information
 
@@ -87,7 +103,8 @@ Note: The free tier has rate limits. If you experience issues loading games, wai
 ## Data Storage
 
 The application uses SQLite to store:
-- Group information
+- Class information
+- Group information (linked to classes)
 - Predictions for each game
 - Game results
 
@@ -114,8 +131,12 @@ nba-predictions-tracker/
 - The NBA API may have rate limits - wait a minute and try again
 - Make sure the date you selected has scheduled games
 
+**Cannot add groups:**
+- Ensure you've created at least one class first
+- Make sure you've selected a class from the dropdown before adding a group
+
 **Predictions not saving:**
-- Ensure you've created at least one group first
+- Ensure you've created at least one class and group first
 - Make sure you've selected winners for the games
 - Check the browser console for error messages
 
@@ -125,12 +146,14 @@ nba-predictions-tracker/
 ## Future Enhancements
 
 Possible features to add:
-- Edit/delete groups
+- Edit/delete classes and groups
+- Class-specific leaderboards
 - Point spread predictions
 - Historical trend charts
 - Export data to CSV
 - Mobile-responsive improvements
 - User authentication
+- Email notifications for game results
 
 ## License
 

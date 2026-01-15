@@ -316,3 +316,118 @@ button:hover {
   color: #28a745;
   font-weight: 600;
 }
+
+/* Class Management Styles */
+.management-section {
+  margin-bottom: 40px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 10px;
+}
+
+.management-section h3 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.3em;
+}
+
+.add-class-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.add-class-form input {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+}
+
+.classes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.class-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.date-selector select {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+.add-group-form select {
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.class-section {
+  margin-bottom: 30px;
+}
+
+.class-section h4 {
+  color: #667eea;
+  font-size: 1.2em;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #667eea;
+}
+
+.groups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.class-header {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-weight: 600;
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+.group-class-label {
+  font-size: 0.75em;
+  color: #667eea;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.stats-class-section {
+  margin-bottom: 40px;
+}
+
+.stats-class-section h3 {
+  color: #667eea;
+  font-size: 1.5em;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #667eea;
+}
+
+.stat-card h4 {
+  font-size: 1.3em;
+  margin-bottom: 10px;
+}

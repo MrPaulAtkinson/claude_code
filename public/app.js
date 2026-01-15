@@ -1,5 +1,6 @@
 const API_BASE = 'http://localhost:3000/api';
 
+let classes = [];
 let groups = [];
 let currentGames = [];
 
@@ -7,6 +8,7 @@ let currentGames = [];
 document.addEventListener('DOMContentLoaded', () => {
   initializeTabs();
   initializeDateInputs();
+  loadClasses();
   loadGroups();
   loadStats();
 
@@ -14,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('load-games-btn').addEventListener('click', loadGames);
   document.getElementById('save-predictions-btn').addEventListener('click', savePredictions);
   document.getElementById('load-results-btn').addEventListener('click', loadResults);
+  document.getElementById('add-class-btn').addEventListener('click', addClass);
   document.getElementById('add-group-btn').addEventListener('click', addGroup);
 });
 
@@ -35,6 +38,7 @@ function initializeTabs() {
       if (btn.getAttribute('data-tab') === 'stats') {
         loadStats();
       } else if (btn.getAttribute('data-tab') === 'groups') {
+        loadClasses();
         loadGroups();
       }
     });
@@ -46,6 +50,83 @@ function initializeDateInputs() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('predictions-date').value = today;
   document.getElementById('results-date').value = today;
+}
+
+// Load classes from API
+async function loadClasses() {
+  try {
+    const response = await fetch(`${API_BASE}/classes`);
+    const data = await response.json();
+    classes = data.classes;
+    displayClasses();
+    updateClassSelectors();
+  } catch (error) {
+    console.error('Error loading classes:', error);
+    showMessage('Error loading classes', 'error');
+  }
+}
+
+// Display classes in the classes tab
+function displayClasses() {
+  const container = document.getElementById('classes-list');
+
+  if (classes.length === 0) {
+    container.innerHTML = '<p class="info-message">No classes yet. Add your first class above!</p>';
+    return;
+  }
+
+  container.innerHTML = '<div class="classes-grid">' + classes.map(cls => `
+    <div class="class-card">${cls.name}</div>
+  `).join('') + '</div>';
+}
+
+// Update class selector dropdowns
+function updateClassSelectors() {
+  const groupClassSelector = document.getElementById('group-class-selector');
+  const predictionsClassFilter = document.getElementById('predictions-class-filter');
+
+  // Update group creation selector
+  if (classes.length === 0) {
+    groupClassSelector.innerHTML = '<option value="">No classes available - add one first</option>';
+  } else {
+    groupClassSelector.innerHTML = '<option value="">Select a class</option>' +
+      classes.map(cls => `<option value="${cls.id}">${cls.name}</option>`).join('');
+  }
+
+  // Update predictions filter
+  predictionsClassFilter.innerHTML = '<option value="">All Classes</option>' +
+    classes.map(cls => `<option value="${cls.id}">${cls.name}</option>`).join('');
+}
+
+// Add a new class
+async function addClass() {
+  const input = document.getElementById('new-class-name');
+  const name = input.value.trim();
+
+  if (!name) {
+    showMessage('Please enter a class name', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/classes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+
+    if (response.ok) {
+      input.value = '';
+      await loadClasses();
+      showMessage('Class added successfully!', 'success');
+    } else {
+      const error = await response.json();
+      showMessage(error.error || 'Failed to add class', 'error');
+    }
+  } catch (error) {
+    console.error('Error adding class:', error);
+    showMessage('Error adding class', 'error');
+  }
 }
 
 // Load groups from API
@@ -70,18 +151,49 @@ function displayGroups() {
     return;
   }
 
-  container.innerHTML = groups.map(group => `
-    <div class="group-card">${group.name}</div>
-  `).join('');
+  // Organize groups by class
+  const groupsByClass = {};
+  groups.forEach(group => {
+    if (!groupsByClass[group.class_id]) {
+      groupsByClass[group.class_id] = [];
+    }
+    groupsByClass[group.class_id].push(group);
+  });
+
+  let html = '';
+  classes.forEach(cls => {
+    const classGroups = groupsByClass[cls.id] || [];
+    if (classGroups.length > 0) {
+      html += `
+        <div class="class-section">
+          <h4>${cls.name}</h4>
+          <div class="groups-grid">
+            ${classGroups.map(group => `
+              <div class="group-card">${group.name}</div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  container.innerHTML = html || '<p class="info-message">No groups yet. Add your first group above!</p>';
 }
 
 // Add a new group
 async function addGroup() {
   const input = document.getElementById('new-group-name');
+  const classSelector = document.getElementById('group-class-selector');
   const name = input.value.trim();
+  const classId = parseInt(classSelector.value);
 
   if (!name) {
     showMessage('Please enter a group name', 'error');
+    return;
+  }
+
+  if (!classId) {
+    showMessage('Please select a class', 'error');
     return;
   }
 
@@ -89,11 +201,12 @@ async function addGroup() {
     const response = await fetch(`${API_BASE}/groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, classId })
     });
 
     if (response.ok) {
       input.value = '';
+      classSelector.value = '';
       await loadGroups();
       showMessage('Group added successfully!', 'success');
     } else {
@@ -150,29 +263,84 @@ async function loadGames() {
 // Display games with prediction dropdowns
 function displayGamesForPredictions(games, existingPredictions) {
   const container = document.getElementById('games-container');
+  const classFilter = document.getElementById('predictions-class-filter').value;
+
+  // Filter groups by selected class
+  let filteredGroups = groups;
+  if (classFilter) {
+    filteredGroups = groups.filter(g => g.class_id == classFilter);
+  }
+
+  if (filteredGroups.length === 0) {
+    container.innerHTML = '<p class="info-message">No groups in the selected class. Please add groups first.</p>';
+    return;
+  }
 
   container.innerHTML = games.map(game => {
-    const gamePredictions = groups.map(group => {
-      const existing = existingPredictions.find(
-        p => p.game_id == game.id && p.group_id === group.id
-      );
-      const selected = existing ? existing.predicted_winner : '';
+    // Group predictions by class
+    const groupsByClass = {};
+    filteredGroups.forEach(group => {
+      if (!groupsByClass[group.class_id]) {
+        groupsByClass[group.class_id] = [];
+      }
+      groupsByClass[group.class_id].push(group);
+    });
 
-      return `
-        <div class="prediction-item">
-          <label>${group.name}</label>
-          <select data-game-id="${game.id}" data-group-id="${group.id}">
-            <option value="">Select Winner</option>
-            <option value="${game.homeTeam}" ${selected === game.homeTeam ? 'selected' : ''}>
-              ${game.homeTeam}
-            </option>
-            <option value="${game.awayTeam}" ${selected === game.awayTeam ? 'selected' : ''}>
-              ${game.awayTeam}
-            </option>
-          </select>
-        </div>
-      `;
-    }).join('');
+    let gamePredictions = '';
+
+    // Show class headers if viewing all classes
+    if (!classFilter) {
+      classes.forEach(cls => {
+        const classGroups = groupsByClass[cls.id] || [];
+        if (classGroups.length > 0) {
+          gamePredictions += `<div class="class-header">${cls.name}</div>`;
+          classGroups.forEach(group => {
+            const existing = existingPredictions.find(
+              p => p.game_id == game.id && p.group_id === group.id
+            );
+            const selected = existing ? existing.predicted_winner : '';
+
+            gamePredictions += `
+              <div class="prediction-item">
+                <label>${group.name}</label>
+                <select data-game-id="${game.id}" data-group-id="${group.id}">
+                  <option value="">Select Winner</option>
+                  <option value="${game.homeTeam}" ${selected === game.homeTeam ? 'selected' : ''}>
+                    ${game.homeTeam}
+                  </option>
+                  <option value="${game.awayTeam}" ${selected === game.awayTeam ? 'selected' : ''}>
+                    ${game.awayTeam}
+                  </option>
+                </select>
+              </div>
+            `;
+          });
+        }
+      });
+    } else {
+      // Just show groups without class headers when filtered
+      filteredGroups.forEach(group => {
+        const existing = existingPredictions.find(
+          p => p.game_id == game.id && p.group_id === group.id
+        );
+        const selected = existing ? existing.predicted_winner : '';
+
+        gamePredictions += `
+          <div class="prediction-item">
+            <label>${group.name}</label>
+            <select data-game-id="${game.id}" data-group-id="${group.id}">
+              <option value="">Select Winner</option>
+              <option value="${game.homeTeam}" ${selected === game.homeTeam ? 'selected' : ''}>
+                ${game.homeTeam}
+              </option>
+              <option value="${game.awayTeam}" ${selected === game.awayTeam ? 'selected' : ''}>
+                ${game.awayTeam}
+              </option>
+            </select>
+          </div>
+        `;
+      });
+    }
 
     return `
       <div class="game-card">
@@ -298,8 +466,14 @@ function displayResults(games, predictions) {
   let html = '<table class="results-table"><thead><tr>';
   html += '<th>Game</th><th>Score</th><th>Winner</th>';
 
-  groups.forEach(group => {
-    html += `<th>${group.name}</th>`;
+  // Group column headers by class
+  classes.forEach(cls => {
+    const classGroups = groups.filter(g => g.class_id === cls.id);
+    if (classGroups.length > 0) {
+      classGroups.forEach(group => {
+        html += `<th><div class="group-class-label">${cls.name}</div>${group.name}</th>`;
+      });
+    }
   });
 
   html += '</tr></thead><tbody>';
@@ -310,16 +484,19 @@ function displayResults(games, predictions) {
     html += `<td class="score">${game.awayScore} - ${game.homeScore}</td>`;
     html += `<td class="winner">${game.winner}</td>`;
 
-    groups.forEach(group => {
-      const pred = predictions.find(p => p.game_id == game.id && p.group_id === group.id);
-      if (pred) {
-        const isCorrect = pred.predicted_winner === game.winner;
-        html += `<td class="${isCorrect ? 'correct' : 'incorrect'}">
-          ${pred.predicted_winner} ${isCorrect ? '✓' : '✗'}
-        </td>`;
-      } else {
-        html += '<td>-</td>';
-      }
+    classes.forEach(cls => {
+      const classGroups = groups.filter(g => g.class_id === cls.id);
+      classGroups.forEach(group => {
+        const pred = predictions.find(p => p.game_id == game.id && p.group_id === group.id);
+        if (pred) {
+          const isCorrect = pred.predicted_winner === game.winner;
+          html += `<td class="${isCorrect ? 'correct' : 'incorrect'}">
+            ${pred.predicted_winner} ${isCorrect ? '✓' : '✗'}
+          </td>`;
+        } else {
+          html += '<td>-</td>';
+        }
+      });
     });
 
     html += '</tr>';
@@ -355,21 +532,45 @@ async function loadStats() {
 function displayStats(stats) {
   const container = document.getElementById('stats-container');
 
-  container.innerHTML = '<div class="stats-grid">' + stats.map(stat => {
-    const accuracy = stat.accuracy_percentage || 0;
-    const total = stat.total_predictions || 0;
-    const correct = stat.correct_predictions || 0;
+  // Organize stats by class
+  const statsByClass = {};
+  stats.forEach(stat => {
+    if (!statsByClass[stat.class_id]) {
+      statsByClass[stat.class_id] = [];
+    }
+    statsByClass[stat.class_id].push(stat);
+  });
 
-    return `
-      <div class="stat-card">
-        <h3>${stat.name}</h3>
-        <div class="accuracy">${accuracy.toFixed(1)}%</div>
-        <div class="details">
-          ${correct} / ${total} correct predictions
+  let html = '';
+  classes.forEach(cls => {
+    const classStats = statsByClass[cls.id] || [];
+    if (classStats.length > 0) {
+      html += `
+        <div class="stats-class-section">
+          <h3>${cls.name}</h3>
+          <div class="stats-grid">
+            ${classStats.map(stat => {
+              const accuracy = stat.accuracy_percentage || 0;
+              const total = stat.total_predictions || 0;
+              const correct = stat.correct_predictions || 0;
+
+              return `
+                <div class="stat-card">
+                  <h4>${stat.name}</h4>
+                  <div class="accuracy">${accuracy.toFixed(1)}%</div>
+                  <div class="details">
+                    ${correct} / ${total} correct predictions
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
-      </div>
-    `;
-  }).join('') + '</div>';
+      `;
+    }
+  });
+
+  container.innerHTML = html;
 }
 
 // Show message to user
