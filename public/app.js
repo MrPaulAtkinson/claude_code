@@ -3,6 +3,8 @@ const API_BASE = 'http://localhost:3000/api';
 let classes = [];
 let groups = [];
 let currentGames = [];
+let currentResultsGames = [];
+let currentResultsPredictions = [];
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('load-results-btn').addEventListener('click', loadResults);
   document.getElementById('add-class-btn').addEventListener('click', addClass);
   document.getElementById('add-group-btn').addEventListener('click', addGroup);
+
+  // Results filter listener
+  document.getElementById('results-class-filter').addEventListener('change', () => {
+    if (currentResultsGames.length > 0) {
+      displayResults(currentResultsGames, currentResultsPredictions);
+    }
+  });
 });
 
 // Tab switching
@@ -645,6 +654,10 @@ async function loadResults() {
       body: JSON.stringify({ results })
     });
 
+    // Store for filtering
+    currentResultsGames = games;
+    currentResultsPredictions = predictions;
+
     displayResults(games, predictions);
   } catch (error) {
     console.error('Error loading results:', error);
@@ -655,19 +668,39 @@ async function loadResults() {
 // Display results in a table
 function displayResults(games, predictions) {
   const container = document.getElementById('results-container');
+  const selectedClassId = document.getElementById('results-class-filter').value;
 
-  let html = '<table class="results-table"><thead><tr>';
+  // Filter groups based on selected class
+  let filteredGroups = groups;
+  if (selectedClassId) {
+    filteredGroups = groups.filter(g => g.class_id == selectedClassId);
+  }
+
+  if (filteredGroups.length === 0) {
+    container.innerHTML = '<p class="info-message">No groups in the selected class.</p>';
+    return;
+  }
+
+  let html = '<div class="table-scroll-container"><table class="results-table"><thead><tr>';
   html += '<th>Game</th><th>Score</th><th>Winner</th>';
 
-  // Group column headers by class
-  classes.forEach(cls => {
-    const classGroups = groups.filter(g => g.class_id === cls.id);
-    if (classGroups.length > 0) {
-      classGroups.forEach(group => {
-        html += `<th><div class="group-class-label">${cls.name}</div>${group.name}</th>`;
-      });
-    }
-  });
+  // Group column headers by class (only for filtered groups)
+  if (selectedClassId) {
+    // Single class selected - show groups without class labels
+    filteredGroups.forEach(group => {
+      html += `<th>${group.name}</th>`;
+    });
+  } else {
+    // All classes - show with class labels
+    classes.forEach(cls => {
+      const classGroups = filteredGroups.filter(g => g.class_id === cls.id);
+      if (classGroups.length > 0) {
+        classGroups.forEach(group => {
+          html += `<th><div class="group-class-label">${cls.name}</div>${group.name}</th>`;
+        });
+      }
+    });
+  }
 
   html += '</tr></thead><tbody>';
 
@@ -677,9 +710,9 @@ function displayResults(games, predictions) {
     html += `<td class="score">${game.awayScore} - ${game.homeScore}</td>`;
     html += `<td class="winner">${game.winner}</td>`;
 
-    classes.forEach(cls => {
-      const classGroups = groups.filter(g => g.class_id === cls.id);
-      classGroups.forEach(group => {
+    if (selectedClassId) {
+      // Single class selected
+      filteredGroups.forEach(group => {
         const pred = predictions.find(p => p.game_id == game.id && p.group_id === group.id);
         if (pred) {
           const isCorrect = pred.predicted_winner === game.winner;
@@ -690,12 +723,28 @@ function displayResults(games, predictions) {
           html += '<td>-</td>';
         }
       });
-    });
+    } else {
+      // All classes
+      classes.forEach(cls => {
+        const classGroups = filteredGroups.filter(g => g.class_id === cls.id);
+        classGroups.forEach(group => {
+          const pred = predictions.find(p => p.game_id == game.id && p.group_id === group.id);
+          if (pred) {
+            const isCorrect = pred.predicted_winner === game.winner;
+            html += `<td class="${isCorrect ? 'correct' : 'incorrect'}">
+              ${pred.predicted_winner} ${isCorrect ? '✓' : '✗'}
+            </td>`;
+          } else {
+            html += '<td>-</td>';
+          }
+        });
+      });
+    }
 
     html += '</tr>';
   });
 
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   container.innerHTML = html;
 }
 
