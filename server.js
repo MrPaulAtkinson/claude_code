@@ -26,6 +26,21 @@ if (!NBA_API_KEY) {
   console.warn('   Get a free API key from: https://www.balldontlie.io/');
 }
 
+// The Odds API configuration
+const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
+const ODDS_API_KEY = process.env.ODDS_API_KEY;
+
+if (!ODDS_API_KEY) {
+  console.warn('⚠️  WARNING: ODDS_API_KEY is not set in .env file. Favorites predictor will not work.');
+  console.warn('   Get a free API key from: https://the-odds-api.com/');
+}
+
+// Cache for team stats (to avoid repeated API calls)
+let teamStatsCache = {
+  data: null,
+  lastUpdate: null
+};
+
 // Get today's date in YYYY-MM-DD format
 function getTodayDate() {
   return new Date().toISOString().split('T')[0];
@@ -76,6 +91,341 @@ app.get('/api/games/:date', async (req, res) => {
   } catch (error) {
     console.error('Error fetching games:', error);
     res.status(500).json({ error: 'Failed to fetch games' });
+  }
+});
+
+// Fetch betting odds from The Odds API
+app.get('/api/odds/:date', async (req, res) => {
+  if (!ODDS_API_KEY) {
+    return res.status(500).json({ error: 'Odds API key not configured' });
+  }
+
+  try {
+    // The Odds API uses sport key 'basketball_nba'
+    const response = await fetch(
+      `${ODDS_API_BASE}/sports/basketball_nba/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h&oddsFormat=american`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Odds API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Transform odds data to map team names to favorites
+    const oddsMap = {};
+    data.forEach(game => {
+      const homeTeam = game.home_team;
+      const awayTeam = game.away_team;
+
+      // Get odds from first bookmaker (usually best available)
+      if (game.bookmakers && game.bookmakers.length > 0) {
+        const h2hMarket = game.bookmakers[0].markets.find(m => m.key === 'h2h');
+        if (h2hMarket && h2hMarket.outcomes) {
+          const homeOdds = h2hMarket.outcomes.find(o => o.name === homeTeam);
+          const awayOdds = h2hMarket.outcomes.find(o => o.name === awayTeam);
+
+          // Favorite is the team with lower (more negative) odds
+          const favorite = homeOdds.price < awayOdds.price ? homeTeam : awayTeam;
+          oddsMap[`${awayTeam}_${homeTeam}`] = favorite;
+        }
+      }
+    });
+
+    res.json({ odds: oddsMap });
+  } catch (error) {
+    console.error('Error fetching odds:', error);
+    res.status(500).json({ error: 'Failed to fetch odds data' });
+  }
+});
+
+// Fetch team stats and calculate point differentials
+app.get('/api/team-stats', async (req, res) => {
+  // Check cache (refresh every 24 hours)
+  if (teamStatsCache.data && teamStatsCache.lastUpdate) {
+    const hoursSinceUpdate = (Date.now() - teamStatsCache.lastUpdate) / (1000 * 60 * 60);
+    if (hoursSinceUpdate < 24) {
+      return res.json({ stats: teamStatsCache.data });
+    }
+  }
+
+  if (!NBA_API_KEY) {
+    return res.status(500).json({ error: 'NBA API key not configured' });
+  }
+
+  try {
+    // Fetch all teams
+    const teamsResponse = await fetch(`${NBA_API_BASE}/teams`, {
+      headers: { 'Authorization': NBA_API_KEY }
+    });
+    const teamsData = await teamsResponse.json();
+    const teams = teamsData.data;
+
+    // Calculate point differential for each team from this season's games
+    const currentSeason = new Date().getFullYear();
+    const seasonStart = `${currentSeason - 1}-10-01`;
+    const seasonEnd = `${currentSeason}-06-30`;
+
+    const teamStats = {};
+
+    // Initialize stats for each team
+    teams.forEach(team => {
+      teamStats[team.full_name] = {
+        pointsScored: 0,
+        pointsAllowed: 0,
+        gamesPlayed: 0,
+        differential: 0
+      };
+    });
+
+    // Fetch games from current season (in batches to avoid rate limits)
+    // For simplicity, we'll fetch recent games to calculate differential
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    let cursor = 0;
+    let hasMore = true;
+
+    while (hasMore && cursor < 1000) { // Limit to prevent infinite loops
+      const gamesResponse = await fetch(
+        `${NBA_API_BASE}/games?seasons[]=${currentSeason - 1}&per_page=100&cursor=${cursor}`,
+        { headers: { 'Authorization': NBA_API_KEY } }
+      );
+
+      const gamesData = await gamesResponse.json();
+      const games = gamesData.data;
+
+      if (games.length === 0) break;
+
+      games.forEach(game => {
+        if (game.home_team_score && game.visitor_team_score) {
+          const homeTeam = game.home_team.full_name;
+          const awayTeam = game.visitor_team.full_name;
+
+          if (teamStats[homeTeam]) {
+            teamStats[homeTeam].pointsScored += game.home_team_score;
+            teamStats[homeTeam].pointsAllowed += game.visitor_team_score;
+            teamStats[homeTeam].gamesPlayed++;
+          }
+
+          if (teamStats[awayTeam]) {
+            teamStats[awayTeam].pointsScored += game.visitor_team_score;
+            teamStats[awayTeam].pointsAllowed += game.home_team_score;
+            teamStats[awayTeam].gamesPlayed++;
+          }
+        }
+      });
+
+      cursor = gamesData.meta?.next_cursor || 0;
+      hasMore = cursor > 0;
+
+      // Respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Calculate differential
+    Object.keys(teamStats).forEach(team => {
+      const stats = teamStats[team];
+      if (stats.gamesPlayed > 0) {
+        const avgScored = stats.pointsScored / stats.gamesPlayed;
+        const avgAllowed = stats.pointsAllowed / stats.gamesPlayed;
+        stats.differential = avgScored - avgAllowed;
+      }
+    });
+
+    // Cache the results
+    teamStatsCache.data = teamStats;
+    teamStatsCache.lastUpdate = Date.now();
+
+    res.json({ stats: teamStats });
+  } catch (error) {
+    console.error('Error fetching team stats:', error);
+    res.status(500).json({ error: 'Failed to fetch team stats' });
+  }
+});
+
+// Initialize Mr. Paul class and automatic prediction groups
+app.post('/api/init-mr-paul', (req, res) => {
+  // First, check if Mr. Paul class exists
+  db.get('SELECT id FROM classes WHERE name = ?', ['Mr. Paul'], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    let mrPaulClassId;
+
+    const createGroups = (classId) => {
+      const groups = ['Home Team', 'Favorites', 'Point Differential'];
+      let completed = 0;
+
+      groups.forEach(groupName => {
+        db.run(
+          'INSERT OR IGNORE INTO groups (class_id, name) VALUES (?, ?)',
+          [classId, groupName],
+          (err) => {
+            if (err && !err.message.includes('UNIQUE')) {
+              console.error(`Error creating group ${groupName}:`, err);
+            }
+            completed++;
+            if (completed === groups.length) {
+              res.json({ success: true, classId });
+            }
+          }
+        );
+      });
+    };
+
+    if (row) {
+      // Mr. Paul class exists
+      createGroups(row.id);
+    } else {
+      // Create Mr. Paul class
+      db.run('INSERT INTO classes (name) VALUES (?)', ['Mr. Paul'], function(err) {
+        if (err) {
+          return res.status(400).json({ error: 'Failed to create Mr. Paul class' });
+        }
+        createGroups(this.lastID);
+      });
+    }
+  });
+});
+
+// Auto-generate predictions for Mr. Paul groups
+app.post('/api/auto-predictions', async (req, res) => {
+  const { games, date } = req.body;
+
+  if (!games || !date) {
+    return res.status(400).json({ error: 'Games and date are required' });
+  }
+
+  try {
+    // Get Mr. Paul class and groups
+    const mrPaulClass = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM classes WHERE name = ?', ['Mr. Paul'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!mrPaulClass) {
+      return res.status(404).json({ error: 'Mr. Paul class not found. Call /api/init-mr-paul first.' });
+    }
+
+    const groups = await new Promise((resolve, reject) => {
+      db.all(
+        'SELECT id, name FROM groups WHERE class_id = ?',
+        [mrPaulClass.id],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+
+    const homeTeamGroup = groups.find(g => g.name === 'Home Team');
+    const favoritesGroup = groups.find(g => g.name === 'Favorites');
+    const pointDiffGroup = groups.find(g => g.name === 'Point Differential');
+
+    // Fetch odds and team stats
+    let oddsMap = {};
+    let teamStats = {};
+
+    if (ODDS_API_KEY && favoritesGroup) {
+      try {
+        const oddsResponse = await fetch(`http://localhost:${PORT}/api/odds/${date}`);
+        if (oddsResponse.ok) {
+          const oddsData = await oddsResponse.json();
+          oddsMap = oddsData.odds || {};
+        }
+      } catch (e) {
+        console.error('Could not fetch odds:', e);
+      }
+    }
+
+    if (NBA_API_KEY && pointDiffGroup) {
+      try {
+        const statsResponse = await fetch(`http://localhost:${PORT}/api/team-stats`);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          teamStats = statsData.stats || {};
+        }
+      } catch (e) {
+        console.error('Could not fetch team stats:', e);
+      }
+    }
+
+    // Generate predictions for each game
+    const predictions = [];
+
+    games.forEach(game => {
+      // Home Team prediction
+      if (homeTeamGroup) {
+        predictions.push({
+          groupId: homeTeamGroup.id,
+          gameId: game.id,
+          gameDate: date,
+          predictedWinner: game.homeTeam,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam
+        });
+      }
+
+      // Favorites prediction
+      if (favoritesGroup) {
+        const key = `${game.awayTeam}_${game.homeTeam}`;
+        const favorite = oddsMap[key] || game.homeTeam; // Default to home if no odds
+        predictions.push({
+          groupId: favoritesGroup.id,
+          gameId: game.id,
+          gameDate: date,
+          predictedWinner: favorite,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam
+        });
+      }
+
+      // Point Differential prediction
+      if (pointDiffGroup) {
+        const homeDiff = teamStats[game.homeTeam]?.differential || 0;
+        const awayDiff = teamStats[game.awayTeam]?.differential || 0;
+        const predicted = homeDiff > awayDiff ? game.homeTeam : game.awayTeam;
+
+        predictions.push({
+          groupId: pointDiffGroup.id,
+          gameId: game.id,
+          gameDate: date,
+          predictedWinner: predicted,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam
+        });
+      }
+    });
+
+    // Save predictions to database
+    const insertStmt = db.prepare(`
+      INSERT OR REPLACE INTO predictions
+      (group_id, game_id, game_date, predicted_winner, home_team, away_team)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    predictions.forEach(pred => {
+      insertStmt.run(
+        pred.groupId,
+        pred.gameId,
+        pred.gameDate,
+        pred.predictedWinner,
+        pred.homeTeam,
+        pred.awayTeam
+      );
+    });
+
+    insertStmt.finalize();
+
+    res.json({ success: true, predictionsGenerated: predictions.length });
+  } catch (error) {
+    console.error('Error generating auto predictions:', error);
+    res.status(500).json({ error: 'Failed to generate auto predictions' });
   }
 });
 

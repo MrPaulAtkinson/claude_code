@@ -10,13 +10,17 @@ A web application to track and compare NBA game predictions from different group
 - **Class Filtering**: View predictions and results filtered by class
 - **Results Comparison**: View predictions vs. actual results
 - **Accuracy Statistics**: Track overall prediction accuracy organized by class
+- **Automatic Baseline Predictions**: Three automatic prediction models (Home Team, Favorites, Point Differential) in "Mr. Paul" class
+- **Edit/Delete Groups**: Manage classes and groups with edit and delete functionality
+- **Keyboard Shortcuts**: Fast data entry with arrow keys and hotkeys
 - **Clean Interface**: Easy-to-use tabbed interface
 
 ## Prerequisites
 
 - Node.js (version 14 or higher)
 - npm (comes with Node.js)
-- NBA API key from balldontlie.io (free)
+- NBA API key from balldontlie.io (free, required)
+- The Odds API key from the-odds-api.com (free, optional - for "Favorites" predictor)
 
 ## Installation
 
@@ -27,21 +31,29 @@ A web application to track and compare NBA game predictions from different group
 npm install
 ```
 
-3. **Set up your NBA API key:**
+3. **Set up your API keys:**
 
-   a. Get a free API key:
+   a. Get a free NBA API key (required):
    - Visit https://www.balldontlie.io/
    - Sign up for a free account
    - Copy your API key
 
-   b. Create a `.env` file in the project root:
+   b. Get a free Odds API key (optional, for "Favorites" predictor):
+   - Visit https://the-odds-api.com/
+   - Sign up for a free account
+   - Go to your Dashboard
+   - Copy your API key
+   - Note: Free tier includes 500 requests/month
+
+   c. Create a `.env` file in the project root:
    ```bash
    cp .env.example .env
    ```
 
-   c. Open `.env` and add your API key:
+   d. Open `.env` and add your API keys:
    ```
-   NBA_API_KEY=your_actual_api_key_here
+   NBA_API_KEY=your_nba_api_key_here
+   ODDS_API_KEY=your_odds_api_key_here
    ```
 
    **Important:** Never commit your `.env` file to git! It's already in `.gitignore`.
@@ -84,7 +96,19 @@ Next, add groups to each class:
 
 Note: Group names must be unique within each class, but different classes can have groups with the same name.
 
-### 3. Make Predictions
+### 3. Automatic Baseline Predictions ("Mr. Paul" Class)
+
+The application automatically creates a "Mr. Paul" class with three baseline prediction models:
+
+- **Home Team**: Always predicts the home team will win (historically ~60% accurate in NBA)
+- **Favorites**: Predicts based on betting odds/favorites (requires ODDS_API_KEY)
+- **Point Differential**: Predicts based on team season point differential stats
+
+These predictions are automatically generated when you load games, providing baseline models that students cannot copy. They appear in results and statistics alongside student predictions.
+
+**Note:** The "Favorites" predictor requires an Odds API key to function. Without it, it will default to picking the home team.
+
+### 4. Make Predictions
 
 To record predictions for a day's games:
 - Go to the "Today's Predictions" tab
@@ -94,16 +118,18 @@ To record predictions for a day's games:
 - For each game, select the predicted winner for each group
 - Click "Save All Predictions"
 
-### 4. View Results
+### 5. View Results
 
 After games are completed:
 - Go to the "Previous Results" tab
 - Select the date
+- (Optional) Filter by a specific class using the dropdown
 - Click "Load Results"
 - View a table showing each group's predictions organized by class
 - Predictions are marked as correct (✓) or incorrect (✗)
+- Scroll horizontally if you have many groups
 
-### 5. Check Statistics
+### 6. Check Statistics
 
 View overall accuracy:
 - Go to the "Group Statistics" tab
@@ -113,12 +139,23 @@ View overall accuracy:
 
 ## API Information
 
-This application uses the free [balldontlie.io](https://www.balldontlie.io/) NBA API to fetch game data. The API provides:
+This application uses two APIs:
+
+### NBA API (balldontlie.io) - Required
+The [balldontlie.io](https://www.balldontlie.io/) API provides:
 - Game schedules
 - Live scores
 - Final results
+- Team statistics
 
 Note: The free tier has rate limits. If you experience issues loading games, wait a moment and try again.
+
+### The Odds API (the-odds-api.com) - Optional
+The [The Odds API](https://the-odds-api.com/) provides:
+- Betting odds for NBA games
+- Used for the "Favorites" automatic predictor
+
+Note: Free tier includes 500 requests/month. The app caches odds data to minimize API calls.
 
 ## Data Storage
 

@@ -10,6 +10,7 @@ let currentResultsPredictions = [];
 document.addEventListener('DOMContentLoaded', () => {
   initializeTabs();
   initializeDateInputs();
+  initMrPaul(); // Initialize Mr. Paul class and groups
   loadClasses();
   loadGroups();
   loadStats();
@@ -52,6 +53,18 @@ function initializeTabs() {
       }
     });
   });
+}
+
+// Initialize Mr. Paul class with automatic prediction groups
+async function initMrPaul() {
+  try {
+    await fetch(`${API_BASE}/init-mr-paul`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.log('Could not initialize Mr. Paul class:', error);
+  }
 }
 
 // Initialize date inputs to today
@@ -396,7 +409,18 @@ async function loadGames() {
       return;
     }
 
-    // Load existing predictions for this date
+    // Auto-generate Mr. Paul predictions
+    try {
+      await fetch(`${API_BASE}/auto-predictions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ games: currentGames, date })
+      });
+    } catch (autoError) {
+      console.log('Could not generate auto predictions:', autoError);
+    }
+
+    // Load existing predictions for this date (including Mr. Paul's)
     const predsResponse = await fetch(`${API_BASE}/predictions/${date}`);
     const predsData = await predsResponse.json();
     const existingPredictions = predsData.predictions || [];
