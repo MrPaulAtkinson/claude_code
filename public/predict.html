@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>NBA Predictions - Submit Your Picks</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    .group-name {
+      font-size: 1.3em;
+      font-weight: 600;
+      background: rgba(255,255,255,0.2);
+      padding: 10px 20px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .date-display {
+      text-align: center;
+      font-size: 1.2em;
+      color: #667eea;
+      font-weight: 600;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
+
+    .info-message {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      font-size: 1.1em;
+    }
+
+    .error-message {
+      background: #dc3545;
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .success-message {
+      background: #28a745;
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 600;
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .game-card {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 2px solid #e0e0e0;
+    }
+
+    .game-matchup {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .team-buttons {
+      display: flex;
+      gap: 15px;
+    }
+
+    .team-btn {
+      flex: 1;
+      padding: 15px;
+      font-size: 1em;
+      font-weight: 600;
+      border: 2px solid #ddd;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .team-btn:hover {
+      background: #f0f0f0;
+      border-color: #667eea;
+    }
+
+    .team-btn.selected {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .submit-container {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    .submit-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 50px;
+      font-size: 1.2em;
+      font-weight: 600;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      font-size: 1.2em;
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🏀 NBA Predictions</h1>
+      <div class="group-name" id="group-name">Loading...</div>
+    </header>
+
+    <div class="content">
+      <div id="message-container"></div>
+      <div class="date-display" id="date-display">Loading...</div>
+      <div id="games-container">
+        <p class="info-message">Loading games...</p>
+      </div>
+      <div id="submit-container" class="submit-container" style="display: none;">
+        <button class="submit-btn" id="submit-btn">Submit Predictions</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const groupId = urlParams.get('group');
+    const API_BASE = window.location.origin + '/api';
+    let currentGames = [];
+    let selections = {};
+
+    async function init() {
+      if (!groupId) {
+        showMessage('Invalid prediction link', 'error');
+        return;
+      }
+
+      try {
+        // Load group info
+        const groupResponse = await fetch(`${API_BASE}/groups/${groupId}`);
+        const groupData = await groupResponse.json();
+
+        if (!groupData.group) {
+          showMessage('Group not found', 'error');
+          return;
+        }
+
+        document.getElementById('group-name').textContent = groupData.group.name;
+
+        // Get today's date
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date-display').textContent =
+          new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Load today's games
+        const gamesResponse = await fetch(`${API_BASE}/games/${today}`);
+        const gamesData = await gamesResponse.json();
+        currentGames = gamesData.games;
+
+        if (currentGames.length === 0) {
+          document.getElementById('games-container').innerHTML =
+            '<p class="info-message">No games scheduled for today.</p>';
+          return;
+        }
+
+        // Check for existing predictions
+        const predsResponse = await fetch(`${API_BASE}/predictions/${today}`);
+        const predsData = await predsResponse.json();
+        const existingPredictions = predsData.predictions || [];
+
+        displayGames(existingPredictions);
+      } catch (error) {
+        console.error('Error loading:', error);
+        showMessage('Failed to load games. Please try again.', 'error');
+      }
+    }
+
+    function displayGames(existingPredictions) {
+      const container = document.getElementById('games-container');
+
+      container.innerHTML = currentGames.map(game => {
+        const existing = existingPredictions.find(
+          p => p.game_id == game.id && p.group_id == groupId
+        );
+        const selectedTeam = existing ? existing.predicted_winner : null;
+
+        if (selectedTeam) {
+          selections[game.id] = selectedTeam;
+        }
+
+        return `
+          <div class="game-card">
+            <div class="game-matchup">${game.awayTeam} @ ${game.homeTeam}</div>
+            <div class="team-buttons">
+              <button class="team-btn ${selectedTeam === game.awayTeam ? 'selected' : ''}"
+                      onclick="selectTeam(${game.id}, '${game.awayTeam}', '${game.homeTeam}')">
+                ${game.awayTeam}
+              </button>
+              <button class="team-btn ${selectedTeam === game.homeTeam ? 'selected' : ''}"
+                      onclick="selectTeam(${game.id}, '${game.homeTeam}', '${game.awayTeam}')">
+                ${game.homeTeam}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('submit-container').style.display = 'block';
+    }
+
+    function selectTeam(gameId, selectedTeam, otherTeam) {
+      selections[gameId] = selectedTeam;
+
+      // Update button styles
+      event.target.classList.add('selected');
+      const buttons = event.target.parentElement.querySelectorAll('.team-btn');
+      buttons.forEach(btn => {
+        if (btn !== event.target) {
+          btn.classList.remove('selected');
+        }
+      });
+    }
+
+    async function submitPredictions() {
+      const today = new Date().toISOString().split('T')[0];
+      const predictions = [];
+
+      currentGames.forEach(game => {
+        if (selections[game.id]) {
+          predictions.push({
+            groupId: parseInt(groupId),
+            gameId: game.id,
+            gameDate: today,
+            predictedWinner: selections[game.id],
+            homeTeam: game.homeTeam,
+            awayTeam: game.awayTeam
+          });
+        }
+      });
+
+      if (predictions.length === 0) {
+        showMessage('Please make at least one prediction', 'error');
+        return;
+      }
+
+      if (predictions.length < currentGames.length) {
+        if (!confirm(`You've only picked ${predictions.length} out of ${currentGames.length} games. Submit anyway?`)) {
+          return;
+        }
+      }
+
+      try {
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+
+        const response = await fetch(`${API_BASE}/predictions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ predictions })
+        });
+
+        if (response.ok) {
+          showMessage('✓ Predictions submitted successfully!', 'success');
+          submitBtn.textContent = 'Submitted!';
+          setTimeout(() => {
+            submitBtn.textContent = 'Submit Predictions';
+            submitBtn.disabled = false;
+          }, 3000);
+        } else {
+          showMessage('Failed to submit predictions. Please try again.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Predictions';
+        }
+      } catch (error) {
+        console.error('Error submitting:', error);
+        showMessage('Error submitting predictions. Please try again.', 'error');
+        document.getElementById('submit-btn').disabled = false;
+        document.getElementById('submit-btn').textContent = 'Submit Predictions';
+      }
+    }
+
+    function showMessage(message, type) {
+      const container = document.getElementById('message-container');
+      const className = type === 'success' ? 'success-message' : 'error-message';
+      container.innerHTML = `<div class="${className}">${message}</div>`;
+
+      if (type === 'success') {
+        setTimeout(() => container.innerHTML = '', 5000);
+      }
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', submitPredictions);
+
+    // Initialize on page load
+    init();
+  </script>
+</body>
+</html>

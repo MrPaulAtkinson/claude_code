@@ -261,6 +261,7 @@ function displayGroups() {
               <div class="group-card">
                 <div class="card-name">${group.name}</div>
                 <div class="card-actions">
+                  <button class="share-btn" onclick="copyPredictionLink(${group.id}, '${group.name.replace(/'/g, "\\'")}')">🔗</button>
                   <button class="edit-btn" onclick="editGroup(${group.id}, '${group.name.replace(/'/g, "\\'")}')">✏️</button>
                   <button class="delete-btn" onclick="deleteGroup(${group.id}, '${group.name.replace(/'/g, "\\'")}')">🗑️</button>
                 </div>
@@ -378,6 +379,25 @@ async function deleteGroup(id, name) {
   } catch (error) {
     console.error('Error deleting group:', error);
     showMessage('Error deleting group', 'error');
+  }
+}
+
+// Copy prediction link for a group
+function copyPredictionLink(groupId, groupName) {
+  const baseUrl = window.location.origin;
+  const link = `${baseUrl}/predict.html?group=${groupId}`;
+
+  // Try to copy to clipboard
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(() => {
+      showMessage(`Link copied for "${groupName}"! Share this with the group.`, 'success');
+    }).catch(() => {
+      // Fallback: show the link in a prompt
+      prompt(`Copy this link for "${groupName}":`, link);
+    });
+  } else {
+    // Fallback for older browsers
+    prompt(`Copy this link for "${groupName}":`, link);
   }
 }
 

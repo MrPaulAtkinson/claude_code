@@ -520,6 +520,28 @@ app.get('/api/groups', (req, res) => {
   });
 });
 
+// Get a single group by ID (for prediction links)
+app.get('/api/groups/:id', (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT g.*, c.name as class_name
+    FROM groups g
+    JOIN classes c ON g.class_id = c.id
+    WHERE g.id = ?
+  `;
+
+  db.get(query, [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    res.json({ group: row });
+  });
+});
+
 // Add a new group
 app.post('/api/groups', (req, res) => {
   const { name, classId } = req.body;

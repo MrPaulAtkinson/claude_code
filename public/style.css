@@ -309,7 +309,7 @@ button:hover {
   justify-content: center;
 }
 
-.edit-btn, .delete-btn {
+.share-btn, .edit-btn, .delete-btn {
   background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.3);
   padding: 5px 10px;
@@ -334,9 +334,16 @@ button:hover {
   transform: scale(1.1);
 }
 
-.group-card .edit-btn, .group-card .delete-btn {
+.group-card .share-btn, .group-card .edit-btn, .group-card .delete-btn {
   background: #fff;
   border: 1px solid #ddd;
+}
+
+.group-card .share-btn:hover {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+  transform: scale(1.1);
 }
 
 .group-card .edit-btn:hover {
